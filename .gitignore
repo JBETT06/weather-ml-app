@@ -4,3 +4,4 @@ __pycache__/
 .DS_Store
 check_inputs.py
 
+ansible/inventory.ini

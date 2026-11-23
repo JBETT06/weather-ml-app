@@ -1,0 +1,101 @@
+---
+# Verifies every requirement (a)-(e) directly on the Production Server.
+# Fails loudly if any check does not pass.
+- name: Verify requirements (a)-(e)
+  hosts: production
+  become: true
+  become_user: "{{ deploy_user }}"
+  tasks:
+    # ---------- (a) kubectl ----------
+    - name: (a) kubectl client version
+      ansible.builtin.command: kubectl version --client
+      register: v_kubectl
+      changed_when: false
+
+    - name: (a) Assert kubectl installed
+      ansible.builtin.assert:
+        that: "'Client Version' in v_kubectl.stdout"
+        success_msg: "PASS (a): kubectl installed"
+
+    # ---------- (b) Minikube ----------
+    - name: (b) minikube status
+      ansible.builtin.command: minikube status
+      register: v_mk
+      changed_when: false
+
+    - name: (b) Assert Minikube running
+      ansible.builtin.assert:
+        that:
+          - "'host: Running' in v_mk.stdout"
+          - "'kubelet: Running' in v_mk.stdout"
+          - "'apiserver: Running' in v_mk.stdout"
+        success_msg: "PASS (b): Minikube installed and running"
+
+    # ---------- (c) Deployment from DockerHub ----------
+    - name: (c) Deployment image
+      ansible.builtin.command: kubectl get deployment {{ app_name }} -o jsonpath={.spec.template.spec.containers[0].image}
+      register: v_image
+      changed_when: false
+
+    - name: (c) Available replicas
+      ansible.builtin.command: kubectl get deployment {{ app_name }} -o jsonpath={.status.availableReplicas}
+      register: v_avail
+      changed_when: false
+
+    - name: (c) Assert DockerHub image deployed and pods available
+      ansible.builtin.assert:
+        that:
+          - v_image.stdout == docker_image
+          - v_avail.stdout | int == replicas | int
+        fail_msg: "image={{ v_image.stdout }} availableReplicas={{ v_avail.stdout }}"
+        success_msg: "PASS (c): {{ v_image.stdout }} deployed, {{ v_avail.stdout }} pods available"
+
+    # ---------- (d) Service ----------
+    - name: (d) Service type
+      ansible.builtin.command: kubectl get svc {{ app_name }}-svc -o jsonpath={.spec.type}
+      register: v_svc
+      changed_when: false
+
+    - name: (d) Service endpoints
+      ansible.builtin.command: kubectl get endpoints {{ app_name }}-svc -o jsonpath={.subsets[*].addresses[*].ip}
+      register: v_ep
+      changed_when: false
+
+    - name: (d) Minikube IP
+      ansible.builtin.command: minikube ip
+      register: v_ip
+      changed_when: false
+
+    - name: (d) Service answers HTTP
+      ansible.builtin.uri:
+        url: "http://{{ v_ip.stdout }}:30080/"
+        status_code: 200
+      register: v_http
+      retries: 10
+      delay: 6
+      until: v_http.status == 200
+
+    - name: (d) Assert Service exists, has endpoints, and responds
+      ansible.builtin.assert:
+        that:
+          - v_svc.stdout == 'NodePort'
+          - v_ep.stdout | length > 0
+        success_msg: "PASS (d): Service {{ app_name }}-svc ({{ v_svc.stdout }}) has endpoints and returns HTTP 200"
+
+    # ---------- (e) Scaling / rolling updates ----------
+    - name: (e) Strategy type
+      ansible.builtin.command: kubectl get deployment {{ app_name }} -o jsonpath={.spec.strategy.type}
+      register: v_strat
+      changed_when: false
+
+    - name: (e) Desired replicas
+      ansible.builtin.command: kubectl get deployment {{ app_name }} -o jsonpath={.spec.replicas}
+      register: v_rep
+      changed_when: false
+
+    - name: (e) Assert deployment is scaled for rolling updates
+      ansible.builtin.assert:
+        that:
+          - v_strat.stdout == 'RollingUpdate'
+          - v_rep.stdout | int >= 2
+        success_msg: "PASS (e): {{ v_rep.stdout }} replicas with {{ v_strat.stdout }} strategy"
