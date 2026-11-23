@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-ml
+  labels:
+    app: weather-ml
+spec:
+  replicas: 3                      # (e) multiple replicas so rolling updates keep the app available
+  strategy:
+    type: RollingUpdate            # (e) replace pods gradually on future image updates
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: weather-ml
+  template:
+    metadata:
+      labels:
+        app: weather-ml
+    spec:
+      containers:
+        - name: weather-ml
+          image: narcisseib/weather-app:latest     # (c) DockerHub image
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
