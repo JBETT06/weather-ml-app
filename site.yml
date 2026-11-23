@@ -1,6 +1,0 @@
----
-- import_playbook: 00_prepare_storage.yml
-- import_playbook: 01_install_kubectl.yml
-- import_playbook: 02_install_start_minikube.yml
-- import_playbook: 03_deploy_application.yml
-- import_playbook: 04_verify.yml
