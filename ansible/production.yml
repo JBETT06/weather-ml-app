@@ -1,0 +1,8 @@
+---
+deploy_user: ubuntu                        # non-root user that runs Minikube
+kubectl_version: "v1.31.0"
+docker_image: "narcisseib/weather-app:latest"   # DockerHub image
+app_name: weather-ml
+replicas: 3
+min_free_gb: 20                            # free disk space needed on / for Minikube + Docker
+cleanup_disk: true                         # clear apt caches, journal and dangling Docker data first
