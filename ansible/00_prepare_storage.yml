@@ -1,0 +1,72 @@
+---
+# Storage preparation: Minikube + Docker need roughly 20 GB of free disk.
+# Default cloud images (e.g. 8 GB AWS root volumes) run out of space, so this playbook
+#   1. grows the root partition/filesystem to use the whole disk (after you enlarge the volume),
+#   2. cleans caches and dangling Docker data,
+#   3. stops the run early with a clear message if there is still not enough free space.
+- name: Prepare storage on the Production Server
+  hosts: production
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install growpart
+      ansible.builtin.apt:
+        name: cloud-guest-utils
+        state: present
+        update_cache: true
+
+    - name: Expand root partition and filesystem to the full disk size
+      ansible.builtin.shell: |
+        set -u
+        ROOT_SRC=$(findmnt -n -o SOURCE /)
+        FSTYPE=$(findmnt -n -o FSTYPE /)
+        PKNAME=$(lsblk -no PKNAME "$ROOT_SRC")
+        PARTNUM=$(cat /sys/class/block/$(basename "$ROOT_SRC")/partition)
+        out=$(growpart "/dev/$PKNAME" "$PARTNUM" 2>&1) || {
+          echo "$out" | grep -q NOCHANGE || { echo "$out"; exit 1; }
+        }
+        if [ "$FSTYPE" = "xfs" ]; then xfs_growfs / >/dev/null; else resize2fs "$ROOT_SRC" >/dev/null 2>&1 || true; fi
+        echo "$out"
+      args:
+        executable: /bin/bash
+      register: grow
+      changed_when: "'CHANGED' in grow.stdout"
+
+    - name: Clean up disk space
+      when: cleanup_disk | bool
+      block:
+        - name: Clear apt caches and unused packages
+          ansible.builtin.shell: apt-get clean && apt-get -y autoremove --purge
+          changed_when: false
+
+        - name: Limit systemd journal size
+          ansible.builtin.command: journalctl --vacuum-size=100M
+          changed_when: false
+
+        - name: Check whether Docker is installed
+          ansible.builtin.command: which docker
+          register: docker_present
+          failed_when: false
+          changed_when: false
+
+        - name: Remove dangling Docker images and build cache (running containers/tagged images are kept)
+          ansible.builtin.shell: docker image prune -f && docker builder prune -f
+          when: docker_present.rc == 0
+          changed_when: false
+
+    - name: Refresh mount facts
+      ansible.builtin.setup:
+        gather_subset: [hardware]
+
+    - name: Work out free space on /
+      ansible.builtin.set_fact:
+        root_free_gb: "{{ ((ansible_mounts | selectattr('mount', 'equalto', '/') | first).size_available / 1073741824) | round(1) }}"
+
+    - name: Assert enough free disk for Minikube
+      ansible.builtin.assert:
+        that: root_free_gb | float >= min_free_gb | float
+        fail_msg: >-
+          Only {{ root_free_gb }} GB free on / (need {{ min_free_gb }} GB).
+          Enlarge the server's disk (e.g. AWS: EC2 > Volumes > Modify volume > 30 GiB),
+          then re-run this playbook.
+        success_msg: "Storage OK: {{ root_free_gb }} GB free on /"
