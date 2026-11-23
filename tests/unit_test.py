@@ -60,7 +60,7 @@ class TestUnit(unittest.TestCase):
 
 	# tests that the model can return a 'foggy' prediction	
 	def test_foggy_classification_output(self):
-		test_input = np.array([289.47,1015,88,2,300,0,0,0,20]).reshape(1,-1)
+		test_input = np.array([259.265165681334,1032.6161295736251,97.3129198879385,4.988188627432716,54.89265446326344,1.5315099747454015,7.496408917097391,4.8309401150272375,31.555353662956065]).reshape(1,-1)
 		class_result, _ = classify_weather(test_input) 
 		# Ensure that 'foggy' class is returned
 		self.assertEqual(class_result, 'foggy', 'Foggy weather input should be classified as "foggy", check that app.py returns the model\'s prediction')
