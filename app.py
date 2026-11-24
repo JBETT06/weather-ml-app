@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 import time
-import sklearn
+
 app = Flask(__name__)
 
 weather_classes = ['clear', 'cloudy', 'drizzly', 'foggy', 'hazey', 'misty', 'rainy', 'smokey', 'thunderstorm']
