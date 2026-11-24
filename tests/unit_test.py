@@ -1,5 +1,4 @@
 import unittest
-from urllib import response
 from app import app, classify_weather, load_model
 import numpy as np
 
@@ -23,7 +22,7 @@ class TestUnit(unittest.TestCase):
 		}
 		response = self.client.post('/', data=form_data)
 		# Tests that missing input returns HTTP 400
-		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.status_code, 400, 'Missing input field should return HTTP 400, check app.py > home() > except block')
 		# Tests that error message is displayed with missing input field
 		self.assertIn(b'Error processing input', response.data, 'Error message not displayed with missing input field, check app.py > home() > try/except block')
 
