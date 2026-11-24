@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 import time
+import sklearn
 app = Flask(__name__)
 
 weather_classes = ['clear', 'cloudy', 'drizzly', 'foggy', 'hazey', 'misty', 'rainy', 'smokey', 'thunderstorm']
@@ -62,7 +63,7 @@ def home():
 
 		except Exception as e:
 			error_msg = f"Error processing input: {e}"
-			return render_template('form.html', error=error_msg)
+			return render_template('form.html', error=error_msg), 400
 	# GET method: show the input form
 	return render_template('form.html')
 
