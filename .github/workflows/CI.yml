@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -42,6 +42,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Read image version
+        id: ver
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker image
         run: docker build -t weather-ml-app .
@@ -75,8 +79,12 @@ jobs:
 
       - name: Tag Docker image
         if: github.event_name == 'push'
-        run: docker tag weather-ml-app jbett06/weather-ml-app:latest
+        run: |
+          docker tag weather-ml-app jbett06/weather-ml-app:${{ steps.ver.outputs.version }}
+          docker tag weather-ml-app jbett06/weather-ml-app:latest
 
       - name: Push Docker image
         if: github.event_name == 'push'
-        run: docker push jbett06/weather-ml-app:latest
+        run: |
+          docker push jbett06/weather-ml-app:${{ steps.ver.outputs.version }}
+          docker push jbett06/weather-ml-app:latest
