@@ -1,5 +1,5 @@
 import unittest
-from app import app, classify_weather, load_model
+from app import app, classify_weather, load_model, weather_classes
 import numpy as np
 
 class TestUnit(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestUnit(unittest.TestCase):
 		self.assertEqual(model.n_features_in_, 9, f'Loaded model expects {model.n_features_in_} input features but the app sends 9, check that model/model.pkl is the expected model')
 		
 
-	# Test model classification is within the 9 classes, each time for a different class with three different inputs
+	# Test model classification is within the 9 classes, one test per class, each with an input chosen to return that class
 	
 	# tests that the model can return a 'clear' prediction
 	def test_clear_classification_output(self):
@@ -57,8 +57,10 @@ class TestUnit(unittest.TestCase):
 	def test_rainy_classification_output(self):
 		test_input = np.array([279.626,998,99,1,314,0.3,0,0,88]).reshape(1,-1)
 		class_result, _ = classify_weather(test_input) 
-		# Ensure that 'rainy' class is returned
-		self.assertEqual(class_result, 'rainy', 'Rainy weather input should be classified as "rainy", check that app.py returns the model\'s prediction')
+		# The model predicts class index 6 for this input. Look the label up by index so the
+		# test still passes if the label in weather_classes is renamed (e.g. 'rainy' -> 'rain')
+		expected = weather_classes[6]
+		self.assertEqual(class_result, expected, f'Rainy weather input should be classified as "{expected}" (weather_classes[6]), check that app.py returns the model\'s prediction')
 
 	# tests that the model can return a 'foggy' prediction	
 	def test_foggy_classification_output(self):
