@@ -1,5 +1,5 @@
 import unittest
-from app import app, classify_weather, load_model, weather_classes
+from app import app, classify_weather, load_model, weather_classes, FEATURE_COLUMNS
 import numpy as np
 
 class TestUnit(unittest.TestCase):
@@ -43,6 +43,11 @@ class TestUnit(unittest.TestCase):
 		# tests that model has expected number of input features
 		self.assertEqual(model.n_features_in_, 9, f'Loaded model expects {model.n_features_in_} input features but the app sends 9, check that model/model.pkl is the expected model')
 		
+
+	# Tests that the feature names app.py builds the input with match the names the model was trained with
+	def test_feature_columns_match_model(self):
+		model = load_model()
+		self.assertEqual(list(model.feature_names_in_), FEATURE_COLUMNS, f'FEATURE_COLUMNS in app.py does not match the model\'s feature names {list(model.feature_names_in_)}, check app.py > FEATURE_COLUMNS')
 
 	# Sanity check on the list the class tests look their labels up in
 	def test_weather_classes_count(self):
