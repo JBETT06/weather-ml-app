@@ -1,0 +1,39 @@
+name: Weather ML CD
+
+on:
+  workflow_run:
+    workflows: ["Weather ML CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout the commit that passed CI
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Read image version
+        id: ver
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Set image version in deployment manifest
+        run: sed -i "s|image: .*|image: jbett06/weather-ml-app:${{ steps.ver.outputs.version }}|" k8s/deployment.yaml
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/deployment.yaml
+
+      - name: Wait for rolling update to finish
+        run: kubectl rollout status deployment/weather-ml --timeout=180s
+
+      - name: Show deployment state
+        run: |
+          kubectl get deploy,pods,svc -o wide
+          curl -fsS http://$(minikube ip):30080/ | head -n 5
